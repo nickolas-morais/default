@@ -1,0 +1,101 @@
+Atue como Designer Sênior de UI/UX especializado em produtos SaaS B2B/B2C de alta conversão.
+
+Projeto: [caminho do projeto / stack — ex: Next.js 16 + React 19 + Tailwind v4]
+
+Quero um REDESIGN COMPLETO da interface. Trate o design existente como
+referência só de FUNCIONALIDADE (quais telas, dados e ações existem), nunca
+de estética. Repense layout, navegação, hierarquia e composição — não é
+"trocar cor e fonte". Se ao final da Fase 4 cada tela ainda tiver a mesma
+disposição de elementos de antes, e só cor/raio/tipografia tiverem mudado,
+o trabalho falhou, mesmo que pareça "mais bonito".
+
+https://www.skills.sh/
+npx skills add https://github.com/nextlevelbuilder/ui-ux-pro-max-skill --skill ui-ux-pro-max
+npx skills add https://github.com/anthropics/skills --skill frontend-design
+npx skills add https://github.com/leonxlnx/taste-skill --skill design-taste-frontend
+
+## Skills, nesta ordem
+1. ui-ux-pro-max → auditoria de UX, arquitetura de informação, padrões de
+   dashboard/data-driven.
+2. design-taste-frontend → direção estética e critério de gosto. ATENÇÃO:
+   essa skill é escopada para landing page/portfolio (Seção 13 dela mesma
+   diz isso). Para dashboard/produto denso, usar só os princípios que
+   atravessam contexto — paleta de 1 único accent sem "roxo de IA" nem
+   "bege+latão" genérico, shape/color consistency lock, protocolo de dark
+   mode, disciplina de serif (evitar Fraunces/Instrument Serif como
+   default) — e ignorar as regras específicas de landing page (hero,
+   eyebrow, marquee etc.), que não se aplicam.
+3. frontend-design → implementação: tokens, componentes, código.
+Em conflito: acessibilidade > clareza dos dados > estética.
+
+## Direção visual
+- Paleta: neutros profundos + UM único accent. Proponha 2 opções com hex,
+  uso de cada cor, versões light/dark, e teste CADA contraste de texto
+  real (fórmula de luminância relativa do WCAG — escreva um script
+  Node/Python e rode, não estime visualmente). Reserve uma cor separada
+  para "sucesso/confirmação", distinta da cor de ação primária.
+- Tipografia: uma sans-serif (ex: Inter, Plus Jakarta Sans, Geist — escolha
+  uma e justifique). Escala tipográfica nomeada como tokens (display/h1/h2/
+  h3/body/body-sm/caption/data), com peso e line-height embutidos no
+  próprio token, não repetidos a cada uso. Números tabulares em dados.
+- Espaçamento em múltiplos de 4/8, raio e sombra em escala documentada de
+  3 paradas (ex: sm=inputs/botões, md=cards/tabelas, lg=modais/popovers) —
+  sem exceções fora da escala.
+- Interação: hover/focus-visible/active/disabled em tudo que é clicável,
+  transição 150–250ms com easing único, `prefers-reduced-motion`
+  respeitado globalmente.
+- Dark mode: automático via `prefers-color-scheme` E alternável
+  manualmente. Para a alternância sem flash: script bloqueante inline no
+  `<head>` que lê `localStorage` e seta um atributo (`data-theme`) em
+  `<html>` antes da primeira pintura; CSS cobre os três casos (`:not([data-
+  theme="light"])` dentro da media query + `[data-theme="dark"]` fora
+  dela). Mesmo padrão serve para qualquer preferência de UI que precise
+  sobreviver ao reload sem piscar (ex: sidebar recolhida).
+
+## Processo
+Fase 1 — Auditoria: listar todas as telas e componentes, apontar os
+  problemas reais de UX/UI (não só "podia ser mais bonito": hierarquia
+  ausente, sem elevação, token reaproveitado pra duas coisas diferentes,
+  bugs de contraste latentes em dark mode, etc.).
+Fase 2 — Direção: paleta (2 opções), tipografia, espaçamento, estilo de
+  componente, E uma proposta explícita de nova estrutura de navegação/
+  layout (não só "vou trocar a cor do menu").
+Fase 3 — Design system: tokens + componentes base (botão, input, card,
+  tabela, badge, KPI/gráfico, navegação, modal). Preservar a lógica de
+  acessibilidade e de Server/Client Components já existente — só trocar a
+  camada visual.
+Fase 4 — Telas, tela por tela, começando pela mais usada no dia a dia.
+  Para cada uma, ir além de reaplicar tokens: questionar se a composição
+  atual é a certa (agrupamento de dados, o que fica sempre visível vs.
+  escondido atrás de aba/clique, o que pode sair da navegação principal e
+  virar menu secundário, o que pode virar coluna dupla em vez de pilha de
+  cards idênticos). Mostrar o que mudou e por quê ao final de cada tela.
+Fase 5 — Revisão: grep final por padrões antigos deixados pra trás
+  (fonte antiga, `text-white`/cor fixa que quebra em dark mode, raio sem
+  token), rodar typecheck e build de verdade (não só ler o código) depois
+  de cada tela, não só no final.
+
+## Restrições
+- Não alterar rotas, chamadas de API, RPCs de banco ou regra de negócio —
+  só a camada de apresentação.
+- Preservar nomes de tokens/variáveis já usados no projeto quando possível
+  (trocar só o valor), pra não forçar reescrever todo arquivo por motivo
+  cosmético de nome.
+- Antes de inventar um nome de produto/marca, perguntar — não presumir.
+- Pode prosseguir pelas fases sem pedir aprovação a cada uma, mas dar um
+  resumo real (não genérico) do que mudou em cada entrega.
+
+## Armadilhas que já caí nesse tipo de projeto (não repetir)
+- Fazer reskin sistemático (tokens em tudo) e achar que é redesign. Não é.
+  Pergunte-se, tela por tela: "se eu tirasse a cor e a fonte novas, essa
+  tela pareceria diferente da original?" Se a resposta for não, falta
+  trabalho de composição.
+- Dark mode só automático, sem alternância manual visível — usuário espera
+  um botão em produto B2B moderno.
+- Sidebar/nav com todos os itens no mesmo nível (trabalho do dia a dia +
+  conta/config/billing misturados) — considerar separar o que é "trabalho"
+  do que é "conta" (menu de usuário).
+- Lista de dados sempre "achatada" por data só — considerar agrupamento
+  por recência, destaque do que está em estado transitório/ativo.
+- Métrica mais importante da tela escondida atrás de uma aba — considerar
+  deixá-la em cabeçalho persistente.
