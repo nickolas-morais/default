@@ -1,0 +1,483 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>YZI · Gestão de Jobs (protótipo)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700&family=Figtree:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#F5F4F8;--surface:#FFFFFF;--ink:#1E1B2B;--muted:#6B6780;--line:#E3E1EA;
+  --accent:#8A1F5C;--accent-soft:#F4E6EE;
+  --done:#2E7D5B;--done-soft:#E3F2EA;--prog:#9A620F;--prog-soft:#FBF0DC;
+  --idle:#7E7B8E;--idle-soft:#EFEEF3;--crit:#B5363A;--crit-soft:#FBE5E5;
+  box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#15131C;--surface:#1E1B27;--ink:#ECEAF2;--muted:#A29EB3;--line:#2F2B3B;
+  --accent:#E07AB0;--accent-soft:#3A2232;
+  --done:#6FCF9E;--done-soft:#1F3529;--prog:#E6B35A;--prog-soft:#3A2E18;
+  --idle:#9A96AB;--idle-soft:#2A2735;--crit:#F08585;--crit-soft:#3C2022;
+}}
+:root[data-theme="dark"]{
+  --bg:#15131C;--surface:#1E1B27;--ink:#ECEAF2;--muted:#A29EB3;--line:#2F2B3B;
+  --accent:#E07AB0;--accent-soft:#3A2232;
+  --done:#6FCF9E;--done-soft:#1F3529;--prog:#E6B35A;--prog-soft:#3A2E18;
+  --idle:#9A96AB;--idle-soft:#2A2735;--crit:#F08585;--crit-soft:#3C2022;
+}
+*,*::before,*::after{box-sizing:border-box}
+html{scroll-padding-top:env(safe-area-inset-top,0px);height:100%}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:'Figtree',system-ui,-apple-system,'Segoe UI',sans-serif;font-size:15px;line-height:1.5;min-height:100%}
+h1,h2,h3{font-family:'Bricolage Grotesque','Figtree',system-ui,sans-serif;font-weight:700;letter-spacing:-0.01em;margin:0}
+button,select,input{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+.app{display:grid;grid-template-columns:232px 1fr;min-height:100vh}
+.side{background:var(--surface);border-right:1px solid var(--line);padding:24px 16px;display:flex;flex-direction:column;gap:24px;position:sticky;top:0;height:100vh}
+.brand{display:flex;align-items:baseline;gap:8px;padding:0 8px}
+.brand b{font-family:'Bricolage Grotesque',sans-serif;font-size:28px;color:var(--accent);letter-spacing:-0.03em}
+.brand span{color:var(--muted);font-size:13px}
+.nav{display:flex;flex-direction:column;gap:2px}
+.nav button{background:none;border:0;text-align:left;padding:9px 12px;border-radius:8px;cursor:pointer;color:var(--muted);font-weight:500;display:flex;justify-content:space-between;align-items:center}
+.nav button:hover{background:var(--idle-soft);color:var(--ink)}
+.nav button[aria-current="page"]{background:var(--accent-soft);color:var(--accent);font-weight:600}
+.badge{background:var(--crit);color:#fff;border-radius:99px;font-size:12px;font-weight:700;padding:0 7px;min-width:20px;text-align:center}
+.side .foot{margin-top:auto;font-size:12.5px;color:var(--muted);padding:0 8px}
+
+.main{min-width:0;display:flex;flex-direction:column}
+.top{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:16px 32px;border-bottom:1px solid var(--line);background:var(--surface);position:sticky;top:0;z-index:5;flex-wrap:wrap}
+.top h1{font-size:22px}
+.viewas{display:flex;align-items:center;gap:10px;background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:6px 6px 6px 12px}
+.viewas label{font-size:13px;color:var(--muted);white-space:nowrap}
+.viewas select{border:0;background:var(--surface);border-radius:7px;padding:6px 8px;font-weight:600;max-width:260px}
+.content{padding:24px 32px 48px;max-width:1280px;width:100%}
+
+.rolebar{display:flex;gap:10px;align-items:center;font-size:13.5px;color:var(--muted);margin-bottom:20px;flex-wrap:wrap}
+.rolebar .lock{display:inline-flex;align-items:center;gap:6px;padding:3px 10px;border-radius:99px;background:var(--idle-soft)}
+.rolebar .lock.open{background:var(--done-soft);color:var(--done)}
+
+.filters{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px;align-items:center}
+.filters input[type=search],.filters select{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:8px 12px;min-width:0}
+.filters input[type=search]{flex:1 1 220px;max-width:340px}
+.filters .chk{display:flex;gap:6px;align-items:center;font-size:14px;color:var(--muted)}
+
+.scroll{overflow-x:auto;background:var(--surface);border:1px solid var(--line);border-radius:12px}
+table{border-collapse:collapse;width:100%}
+th{font-size:12.5px;font-weight:600;color:var(--muted);text-align:left;padding:12px 14px;border-bottom:1px solid var(--line);white-space:nowrap;background:var(--surface)}
+td{padding:12px 14px;border-bottom:1px solid var(--line);vertical-align:middle;font-size:14px}
+tr:last-child td{border-bottom:0}
+tbody tr.click{cursor:pointer}
+tbody tr.click:hover td{background:var(--bg)}
+.jobcell{min-width:200px}
+.jobcell b{display:block;font-weight:600}
+.jobcell small{color:var(--muted);font-size:12.5px}
+.alertdot{display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--crit);margin-right:6px;vertical-align:middle}
+
+.pill{display:inline-flex;align-items:center;gap:6px;font-size:12.5px;font-weight:600;padding:3px 10px;border-radius:99px;white-space:nowrap}
+.pill::before{content:"";width:7px;height:7px;border-radius:50%;background:currentColor}
+.pill.done{background:var(--done-soft);color:var(--done)}
+.pill.prog{background:var(--prog-soft);color:var(--prog)}
+.pill.idle{background:var(--idle-soft);color:var(--idle)}
+.pill.off{background:transparent;color:var(--idle);border:1px dashed var(--line)}
+.pill.crit{background:var(--crit-soft);color:var(--crit)}
+.stack{display:flex;flex-direction:column;gap:4px;align-items:flex-start}
+.mini{font-size:12px;color:var(--muted)}
+.money{font-variant-numeric:tabular-nums;font-weight:600;white-space:nowrap}
+.restrito{color:var(--muted);font-size:13px;display:inline-flex;align-items:center;gap:6px;white-space:nowrap}
+.restrito svg{width:13px;height:13px}
+.bar{height:6px;background:var(--idle-soft);border-radius:99px;overflow:hidden;width:90px;margin-top:4px}
+.bar i{display:block;height:100%;background:var(--done)}
+
+/* job page */
+.back{background:none;border:0;color:var(--accent);font-weight:600;cursor:pointer;padding:0;margin-bottom:12px}
+.jobhead{display:flex;justify-content:space-between;align-items:flex-start;gap:16px;flex-wrap:wrap;margin-bottom:24px}
+.jobhead h2{font-size:30px;line-height:1.15}
+.jobhead p{margin:6px 0 0;color:var(--muted)}
+.grid{display:grid;grid-template-columns:repeat(12,1fr);gap:20px}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:20px}
+.card h3{font-size:17px;margin-bottom:14px}
+.c4{grid-column:span 4}.c5{grid-column:span 5}.c7{grid-column:span 7}.c8{grid-column:span 8}.c12{grid-column:span 12}
+dl{margin:0;display:grid;grid-template-columns:auto 1fr;gap:8px 16px;font-size:14px}
+dt{color:var(--muted)}dd{margin:0;font-weight:500}
+.track{display:grid;grid-template-columns:1fr auto;gap:12px;align-items:center;padding:12px 0;border-top:1px solid var(--line)}
+.track:first-of-type{border-top:0;padding-top:0}
+.track b{font-weight:600}
+.track .mini{display:block}
+select.st{border:1px solid var(--line);background:var(--bg);border-radius:8px;padding:6px 8px;font-size:13.5px;max-width:210px}
+.vals{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+.vals div{background:var(--bg);border-radius:10px;padding:12px}
+.vals span{display:block;font-size:12.5px;color:var(--muted)}
+.vals strong{font-size:19px;font-variant-numeric:tabular-nums;font-family:'Bricolage Grotesque',sans-serif}
+.lockbox{display:flex;gap:12px;align-items:center;background:var(--bg);border-radius:10px;padding:14px;color:var(--muted);font-size:14px}
+.hist{list-style:none;margin:0;padding:0;font-size:13.5px}
+.hist li{padding:8px 0;border-top:1px solid var(--line);display:grid;grid-template-columns:92px 1fr;gap:8px}
+.hist li:first-child{border-top:0}
+.hist time{color:var(--muted)}
+.alertbox{background:var(--crit-soft);color:var(--crit);border-radius:10px;padding:12px 14px;font-size:14px;margin-bottom:20px}
+.alertbox ul{margin:4px 0 0;padding-left:18px}
+
+/* talentos */
+.tgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:16px}
+.tcard{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:18px;display:flex;flex-direction:column;gap:12px}
+.tcard .av{width:44px;height:44px;border-radius:50%;background:var(--accent-soft);color:var(--accent);display:grid;place-items:center;font-family:'Bricolage Grotesque',sans-serif;font-weight:700;font-size:17px}
+.tcard header{display:flex;gap:12px;align-items:center}
+.tcard h3{font-size:18px}
+.tcard header small{color:var(--muted);font-size:12.5px;display:block}
+.tcard ul{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px}
+.tcard li button{width:100%;text-align:left;background:var(--bg);border:0;border-radius:8px;padding:8px 10px;cursor:pointer;display:flex;justify-content:space-between;gap:8px;align-items:center;font-size:14px}
+.tcard li button:hover{background:var(--accent-soft)}
+
+/* alerts */
+.alist{display:flex;flex-direction:column;gap:10px}
+.aitem{background:var(--surface);border:1px solid var(--line);border-left:4px solid var(--crit);border-radius:10px;padding:14px 16px;display:flex;justify-content:space-between;gap:12px;align-items:center;flex-wrap:wrap}
+.aitem.warn{border-left-color:var(--prog)}
+.aitem b{display:block}
+.aitem small{color:var(--muted)}
+.aitem button{background:var(--accent-soft);color:var(--accent);border:0;border-radius:8px;padding:7px 12px;font-weight:600;cursor:pointer}
+.empty{background:var(--surface);border:1px dashed var(--line);border-radius:12px;padding:32px;text-align:center;color:var(--muted)}
+
+/* metas */
+.meta{display:grid;grid-template-columns:160px 1fr 140px;gap:16px;align-items:center;padding:14px 0;border-top:1px solid var(--line)}
+.meta:first-of-type{border-top:0}
+.meta .track2{height:12px;background:var(--idle-soft);border-radius:99px;overflow:hidden}
+.meta .track2 i{display:block;height:100%;background:var(--accent);border-radius:99px}
+.note{font-size:13.5px;color:var(--muted);margin-top:14px}
+
+.toast{position:fixed;left:50%;bottom:calc(24px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:10px;font-size:14px;opacity:0;pointer-events:none;transition:opacity .2s}
+.toast.show{opacity:1}
+@media (prefers-reduced-motion:reduce){.toast{transition:none}}
+
+@media (max-width:900px){
+  .app{grid-template-columns:1fr}
+  .side{position:static;height:auto;flex-direction:row;align-items:center;padding:12px 16px;gap:12px;overflow-x:auto;border-right:0;border-bottom:1px solid var(--line)}
+  .nav{flex-direction:row}
+  .nav button{white-space:nowrap}
+  .side .foot{display:none}
+  .top{padding:12px 16px;position:static}
+  .content{padding:16px}
+  .c4,.c5,.c7,.c8{grid-column:span 12}
+  .vals{grid-template-columns:1fr}
+  .meta{grid-template-columns:1fr;gap:6px}
+}
+</style>
+</head>
+<body>
+<div class="app">
+  <aside class="side">
+    <div class="brand"><b>YZI</b><span>Jobs</span></div>
+    <nav class="nav" id="nav" aria-label="Seções"></nav>
+    <div class="foot">Protótipo com dados fictícios. As alterações valem só nesta sessão.</div>
+  </aside>
+  <div class="main">
+    <header class="top">
+      <h1 id="title">Matriz de status</h1>
+      <div class="viewas">
+        <label for="role">Ver como</label>
+        <select id="role"></select>
+      </div>
+    </header>
+    <main class="content" id="view"></main>
+  </div>
+</div>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<script>
+const TODAY = '2026-10-02';
+const STEPS = {
+  jur:['Aguardando minuta','Em negociação','Enviado p/ assinatura','Assinado'],
+  adm:['Cadastro pendente','Documentos enviados','Concluído'],
+  nf:['Aguardando autorização','Emitida','Enviada à marca','Paga'],
+  ent:['Briefing','Roteiro','Produção','Aprovação da marca','Publicado'],
+  est:['Não acionada','Acionada','Concluída'],
+  alv:['A solicitar','Solicitado','Emitido']
+};
+const ROLES = [
+  {id:'dir',label:'Diretoria executiva',who:'Diretoria',values:'all'},
+  {id:'dcom',label:'Diretora comercial (Renata)',who:'Renata',values:'all'},
+  {id:'carla',label:'Analista comercial (Carla)',who:'Carla',values:'own',seller:'Carla'},
+  {id:'julia',label:'Analista comercial (Júlia)',who:'Júlia',values:'own',seller:'Júlia'},
+  {id:'gjaf',label:'Gerente jurídico/adm/financeiro',who:'Gerência JAF',values:'all'},
+  {id:'fin',label:'Analista financeiro',who:'Financeiro',values:'all'},
+  {id:'est',label:'Diretora estratégica',who:'Estratégia',values:'none'},
+  {id:'atd',label:'Gerência de atendimento',who:'Atendimento',values:'none'}
+];
+const TALENTOS = {
+  'Tata':{fixa:'Carla',redes:'Instagram, TikTok'},
+  'Tara':{fixa:'Júlia',redes:'Instagram, YouTube'},
+  'Yasmin Castillo':{fixa:'Carla',redes:'Instagram, TikTok'},
+  'Lu Andrade':{fixa:'Júlia',redes:'Instagram, TikTok'},
+  'Bia Moraes':{fixa:'Carla',redes:'Instagram'}
+};
+const METAS = {'Carla':180000,'Júlia':120000,'Renata':80000};
+
+let JOBS = [
+  {id:'J-1042',talentos:['Tata'],marca:'Natura',vig:['2026-08-01','2026-12-31'],
+   alvara:{req:true,st:2,validade:'2027-01-31'},valor:85000,fee:17000,vendidoPor:'Carla',atendimento:'Paula',
+   jur:3,adm:2,est:0,nfYzi:1,nfTal:{'Tata':0},
+   entregas:[
+     {t:'Tata',d:'Reels 1 de 5',r:'Instagram',data:'2026-08-20',st:4},
+     {t:'Tata',d:'Reels 2 de 5',r:'Instagram',data:'2026-09-18',st:4},
+     {t:'Tata',d:'Reels 3 de 5',r:'Instagram',data:'2026-10-16',st:2},
+     {t:'Tata',d:'Reels 4 de 5',r:'Instagram',data:'2026-11-13',st:0},
+     {t:'Tata',d:'Reels 5 de 5',r:'Instagram',data:'2026-12-11',st:0}],
+   hist:[{data:'2026-09-18',quem:'Paula',txt:'Reels 2 de 5: Publicado'},{data:'2026-08-28',quem:'Financeiro',txt:'NF da YZI: Emitida'},{data:'2026-07-30',quem:'Jurídico',txt:'Contrato: Assinado'}]},
+  {id:'J-1051',talentos:['Tara','Yasmin Castillo'],marca:'Poddelas',vig:['2026-10-01','2026-11-30'],
+   alvara:{req:false},valor:120000,fee:24000,vendidoPor:'Júlia',atendimento:'Marina',
+   jur:2,adm:1,est:0,nfYzi:0,nfTal:{'Tara':0,'Yasmin Castillo':0},
+   entregas:[
+     {t:'Tara',d:'Episódio no programa',r:'YouTube / Spotify',data:'2026-10-21',st:1},
+     {t:'Yasmin Castillo',d:'Episódio no programa',r:'YouTube / Spotify',data:'2026-10-21',st:1},
+     {t:'Tara',d:'Reels de divulgação',r:'Instagram',data:'2026-10-23',st:0},
+     {t:'Yasmin Castillo',d:'Reels de divulgação',r:'Instagram',data:'2026-10-23',st:0},
+     {t:'Yasmin Castillo',d:'Sequência de stories',r:'Instagram',data:'2026-10-24',st:0}],
+   hist:[{data:'2026-09-29',quem:'Jurídico',txt:'Contrato: Enviado p/ assinatura'},{data:'2026-09-25',quem:'Júlia',txt:'Job criado'}]},
+  {id:'J-1047',talentos:['Lu Andrade'],marca:'Pampers',vig:['2026-09-15','2026-10-31'],
+   alvara:{req:true,st:1,validade:''},valor:42000,fee:8400,vendidoPor:'Júlia',atendimento:'Paula',
+   jur:1,adm:1,est:0,nfYzi:0,nfTal:{'Lu Andrade':0},
+   entregas:[
+     {t:'Lu Andrade',d:'Stories com produto',r:'Instagram',data:'2026-09-24',st:4},
+     {t:'Lu Andrade',d:'Vídeo rotina da manhã',r:'TikTok',data:'2026-10-07',st:2},
+     {t:'Lu Andrade',d:'Reels com o bebê',r:'Instagram',data:'2026-10-14',st:1}],
+   hist:[{data:'2026-09-24',quem:'Paula',txt:'Stories com produto: Publicado'},{data:'2026-09-16',quem:'Jurídico',txt:'Alvará: Solicitado'}]},
+  {id:'J-1039',talentos:['Bia Moraes'],marca:'Granado',vig:['2026-08-10','2026-10-10'],
+   alvara:{req:false},valor:36000,fee:7200,vendidoPor:'Renata',atendimento:'Marina',
+   jur:3,adm:2,est:1,nfYzi:0,nfTal:{'Bia Moraes':1},
+   entregas:[
+     {t:'Bia Moraes',d:'Reels lançamento',r:'Instagram',data:'2026-09-05',st:4},
+     {t:'Bia Moraes',d:'Sequência de stories',r:'Instagram',data:'2026-09-12',st:4},
+     {t:'Bia Moraes',d:'Reels review',r:'Instagram',data:'2026-09-29',st:3}],
+   hist:[{data:'2026-09-12',quem:'Marina',txt:'Sequência de stories: Publicado'},{data:'2026-08-15',quem:'Estratégia',txt:'Estratégia: Acionada'}]},
+  {id:'J-1055',talentos:['Tata'],marca:'Lojas Renner',vig:['2026-10-15','2026-12-15'],
+   alvara:{req:true,st:0,validade:''},valor:28000,fee:5600,vendidoPor:'Júlia',atendimento:'Paula',
+   jur:0,adm:0,est:0,nfYzi:0,nfTal:{'Tata':0},
+   entregas:[
+     {t:'Tata',d:'TikTok look de fim de ano',r:'TikTok',data:'2026-11-20',st:0},
+     {t:'Tata',d:'TikTok provador',r:'TikTok',data:'2026-12-04',st:0}],
+   hist:[{data:'2026-10-01',quem:'Júlia',txt:'Job criado'}]},
+  {id:'J-1021',talentos:['Yasmin Castillo'],marca:'Danone',vig:['2026-06-01','2026-08-31'],
+   alvara:{req:false},valor:54000,fee:10800,vendidoPor:'Carla',atendimento:'Marina',
+   jur:3,adm:2,est:2,nfYzi:3,nfTal:{'Yasmin Castillo':3},
+   entregas:[
+     {t:'Yasmin Castillo',d:'Reels receita',r:'Instagram',data:'2026-06-20',st:4},
+     {t:'Yasmin Castillo',d:'TikTok desafio',r:'TikTok',data:'2026-07-18',st:4}],
+   hist:[{data:'2026-09-10',quem:'Financeiro',txt:'NF da YZI: Paga'}]}
+];
+
+/* ---------- helpers ---------- */
+const $ = s => document.querySelector(s);
+const esc = s => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const brl = n => n.toLocaleString('pt-BR',{style:'currency',currency:'BRL',maximumFractionDigits:0});
+const days = d => Math.round((Date.parse(d) - Date.parse(TODAY)) / 864e5);
+const fmt = d => { if(!d) return '—'; const [y,m,dd] = d.split('-'); return `${dd}/${m}/${y}`; };
+const tone = (key, i) => { const n = STEPS[key].length; if (key==='est' && i===0) return 'off'; return i===n-1 ? 'done' : i===0 ? 'idle' : 'prog'; };
+const pill = (key, i, extra='') => `<span class="pill ${extra || tone(key,i)}">${esc(STEPS[key][i])}</span>`;
+const LOCK = '<svg viewBox="0 0 16 16" aria-hidden="true"><path fill="currentColor" d="M5 7V5a3 3 0 0 1 6 0v2h1a1 1 0 0 1 1 1v6a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V8a1 1 0 0 1 1-1h1Zm1.5 0h3V5a1.5 1.5 0 0 0-3 0v2Z"/></svg>';
+const restrito = `<span class="restrito">${LOCK}Restrito</span>`;
+const jobName = j => `${j.talentos.join(' + ')} × ${j.marca}`;
+
+let state = { view:'matriz', role:'dir', job:null, q:'', talento:'', soAlerta:false };
+const role = () => ROLES.find(r => r.id === state.role);
+const canSee = j => { const r = role(); return r.values==='all' || (r.values==='own' && j.vendidoPor===r.seller); };
+
+function alertsFor(j){
+  const a = [];
+  if (j.entregas.some(e => e.st===4) && j.jur<3) a.push({lvl:'crit',t:'Conteúdo publicado sem contrato assinado',area:'Jurídico'});
+  if (j.alvara.req && j.alvara.st<2 && j.entregas.some(e => e.st<4 && days(e.data)<=14)) a.push({lvl:'crit',t:'Entrega nos próximos 14 dias com alvará pendente',area:'Jurídico'});
+  const pubAntigo = j.entregas.some(e => e.st===4 && days(e.data) < -10);
+  if (pubAntigo && (j.nfYzi<1 || Object.values(j.nfTal).some(v => v<1))) a.push({lvl:'warn',t:'Entrega publicada há mais de 10 dias com NF pendente',area:'Financeiro'});
+  j.entregas.filter(e => e.st<4 && days(e.data)<0).forEach(e => a.push({lvl:'warn',t:`Entrega atrasada: ${e.d} (${e.t})`,area:'Atendimento'}));
+  const fim = days(j.vig[1]);
+  if (fim>=0 && fim<=30) a.push({lvl:'warn',t:`Vigência termina em ${fim} dias`,area:'Comercial'});
+  return a;
+}
+const allAlerts = () => JOBS.flatMap(j => alertsFor(j).map(a => ({...a, job:j})));
+
+/* ---------- shell ---------- */
+const NAV = [
+  {id:'matriz',label:'Matriz de status'},
+  {id:'talentos',label:'Talentos'},
+  {id:'agenda',label:'Agenda de entregas'},
+  {id:'alertas',label:'Alertas'},
+  {id:'metas',label:'Metas comerciais'}
+];
+function renderNav(){
+  const n = allAlerts().length;
+  $('#nav').innerHTML = NAV.map(v => `<button data-nav="${v.id}" ${state.view===v.id || (state.view==='job' && v.id==='matriz') ? 'aria-current="page"' : ''}>${v.label}${v.id==='alertas' && n ? `<span class="badge">${n}</span>` : ''}</button>`).join('');
+}
+function roleBar(){
+  const r = role();
+  const txt = r.values==='all' ? 'Vê todos os valores' : r.values==='own' ? `Vê valores só dos jobs vendidos por ${r.seller}` : 'Não vê valores';
+  return `<div class="rolebar">Você está vendo como <strong>${esc(r.label)}</strong><span class="lock ${r.values==='all' ? 'open' : ''}">${r.values==='all' ? '' : LOCK}${txt}</span></div>`;
+}
+
+/* ---------- views ---------- */
+function viewMatriz(){
+  const tal = Object.keys(TALENTOS);
+  let list = JOBS.filter(j => {
+    const q = state.q.toLowerCase();
+    if (q && !jobName(j).toLowerCase().includes(q) && !j.id.toLowerCase().includes(q)) return false;
+    if (state.talento && !j.talentos.includes(state.talento)) return false;
+    if (state.soAlerta && !alertsFor(j).length) return false;
+    return true;
+  });
+  const rows = list.map(j => {
+    const al = alertsFor(j);
+    const pub = j.entregas.filter(e => e.st===4).length;
+    const next = j.entregas.find(e => e.st<4);
+    const nfTal = Object.entries(j.nfTal);
+    return `<tr class="click" data-job="${j.id}" tabindex="0">
+      <td class="jobcell">${al.length ? '<span class="alertdot" title="Tem alertas"></span>' : ''}<b style="display:inline">${esc(jobName(j))}</b><small style="display:block">${j.id} · vendido por ${esc(j.vendidoPor)}</small></td>
+      <td>${pill('jur', j.jur)}</td>
+      <td>${pill('adm', j.adm)}</td>
+      <td>${pill('nf', j.nfYzi)}</td>
+      <td><div class="stack">${nfTal.map(([t,v]) => `${pill('nf', v)}${nfTal.length>1 ? `<span class="mini">${esc(t)}</span>` : ''}`).join('')}</div></td>
+      <td><span class="mini">${pub} de ${j.entregas.length} publicadas</span><div class="bar"><i style="width:${pub/j.entregas.length*100}%"></i></div>${next ? `<span class="mini">Próxima: ${fmt(next.data)}</span>` : ''}</td>
+      <td>${pill('est', j.est)}</td>
+      <td>${j.alvara.req ? pill('alv', j.alvara.st, j.alvara.st===2 ? 'done' : j.alvara.st===1 ? 'prog' : 'idle') : '<span class="mini">Não exige</span>'}</td>
+      <td>${canSee(j) ? `<span class="money">${brl(j.valor)}</span>` : restrito}</td>
+    </tr>`;
+  }).join('');
+  return `${roleBar()}
+  <div class="filters">
+    <input type="search" id="q" placeholder="Buscar talento, marca ou nº do job" value="${esc(state.q)}" aria-label="Buscar">
+    <select id="ftal" aria-label="Filtrar por talento"><option value="">Todos os talentos</option>${tal.map(t => `<option ${state.talento===t?'selected':''}>${esc(t)}</option>`).join('')}</select>
+    <label class="chk"><input type="checkbox" id="falert" ${state.soAlerta?'checked':''}> Só jobs com alerta</label>
+  </div>
+  <div class="scroll"><table>
+    <thead><tr><th>Job</th><th>Jurídico</th><th>Administrativo</th><th>NF da YZI</th><th>NF do talento</th><th>Atendimento</th><th>Estratégia</th><th>Alvará</th><th>Valor do job</th></tr></thead>
+    <tbody>${rows || `<tr><td colspan="9"><div class="empty" style="border:0">Nenhum job encontrado com esses filtros.</div></td></tr>`}</tbody>
+  </table></div>`;
+}
+
+function trackRow(label, sub, key, val, path){
+  return `<div class="track"><div><b>${label}</b>${sub ? `<span class="mini">${sub}</span>` : ''}</div>
+    <select class="st" data-path="${path}" aria-label="Status: ${label}">${STEPS[key].map((s,i) => `<option value="${i}" ${i===val?'selected':''}>${esc(s)}</option>`).join('')}</select></div>`;
+}
+function viewJob(){
+  const j = JOBS.find(x => x.id===state.job);
+  const al = alertsFor(j);
+  const see = canSee(j);
+  const alvara = j.alvara.req ? `Sim · ${STEPS.alv[j.alvara.st]}${j.alvara.validade ? ` · válido até ${fmt(j.alvara.validade)}` : ''}` : 'Não';
+  const redes = [...new Set(j.entregas.map(e => e.r))].join(', ');
+  return `<button class="back" data-nav="matriz">← Voltar para a matriz</button>
+  <div class="jobhead"><div><h2>${esc(jobName(j))}</h2><p>${j.id} · vigência ${fmt(j.vig[0])} a ${fmt(j.vig[1])}</p></div></div>
+  ${roleBar()}
+  ${al.length ? `<div class="alertbox"><strong>${al.length} ${al.length>1?'alertas':'alerta'} neste job</strong><ul>${al.map(a => `<li>${esc(a.t)} (${a.area})</li>`).join('')}</ul></div>` : ''}
+  <div class="grid">
+    <section class="card c5"><h3>Ficha do job</h3><dl>
+      <dt>Marca</dt><dd>${esc(j.marca)}</dd>
+      <dt>Talento${j.talentos.length>1?'s':''}</dt><dd>${esc(j.talentos.join(', '))}</dd>
+      <dt>Redes sociais</dt><dd>${esc(redes)}</dd>
+      <dt>Vigência</dt><dd>${fmt(j.vig[0])} a ${fmt(j.vig[1])}</dd>
+      <dt>Alvará</dt><dd>${esc(alvara)}</dd>
+      <dt>Vendido por</dt><dd>${esc(j.vendidoPor)}</dd>
+      <dt>Atendimento</dt><dd>${esc(j.atendimento)}</dd>
+    </dl></section>
+    <section class="card c7"><h3>Valores</h3>
+      ${see ? `<div class="vals"><div><span>Valor do job</span><strong>${brl(j.valor)}</strong></div><div><span>Fee da YZI</span><strong>${brl(j.fee)}</strong></div><div><span>Cachê do${j.talentos.length>1?'s':''} talento${j.talentos.length>1?'s':''}</span><strong>${brl(j.valor - j.fee)}</strong></div></div>
+      <p class="note">Cada parte emite a própria NF para a marca.</p>`
+      : `<div class="lockbox">${LOCK.replace('aria-hidden','width="18" height="18" aria-hidden')}<span>Valores visíveis apenas para diretoria, diretora comercial, gerência jurídico/adm/financeiro, analistas financeiros e a analista que vendeu este job.</span></div>`}
+    </section>
+    <section class="card c5"><h3>Trilhas por área</h3>
+      ${trackRow('Jurídico','Contrato com a marca','jur',j.jur,'jur')}
+      ${trackRow('Administrativo','Cadastros e documentos','adm',j.adm,'adm')}
+      ${trackRow('Financeiro','NF da YZI','nf',j.nfYzi,'nfYzi')}
+      ${Object.entries(j.nfTal).map(([t,v]) => trackRow('NF do talento', esc(t), 'nf', v, 'nfTal:'+t)).join('')}
+      ${j.alvara.req ? trackRow('Alvará', j.alvara.validade ? 'Válido até '+fmt(j.alvara.validade) : 'Exigido neste job', 'alv', j.alvara.st, 'alv') : ''}
+      ${trackRow('Estratégia','Só quando o talento aciona','est',j.est,'est')}
+    </section>
+    <section class="card c7"><h3>Entregáveis (Atendimento)</h3>
+      <div class="scroll" style="border:0"><table><thead><tr><th>Entrega</th><th>Talento</th><th>Rede</th><th>Data</th><th>Status</th></tr></thead><tbody>
+      ${j.entregas.map((e,i) => `<tr><td>${esc(e.d)}</td><td>${esc(e.t)}</td><td>${esc(e.r)}</td><td style="white-space:nowrap;${e.st<4 && days(e.data)<0 ? 'color:var(--crit);font-weight:600' : ''}">${fmt(e.data)}</td>
+        <td><select class="st" data-path="ent:${i}" aria-label="Status de ${esc(e.d)}">${STEPS.ent.map((s,k) => `<option value="${k}" ${k===e.st?'selected':''}>${s}</option>`).join('')}</select></td></tr>`).join('')}
+      </tbody></table></div>
+    </section>
+    <section class="card c12"><h3>Histórico</h3><ul class="hist">
+      ${j.hist.map(h => `<li><time>${fmt(h.data)}</time><span><strong>${esc(h.quem)}</strong> alterou ${esc(h.txt)}</span></li>`).join('')}
+    </ul></section>
+  </div>`;
+}
+
+function viewTalentos(){
+  return `${roleBar()}<div class="tgrid">${Object.entries(TALENTOS).map(([t,info]) => {
+    const jobs = JOBS.filter(j => j.talentos.includes(t));
+    const ativos = jobs.filter(j => days(j.vig[1])>=0);
+    const prox = jobs.flatMap(j => j.entregas.filter(e => e.t===t && e.st<4)).sort((a,b) => a.data.localeCompare(b.data))[0];
+    const ini = t.split(' ').map(p => p[0]).slice(0,2).join('');
+    return `<article class="tcard"><header><div class="av">${ini}</div><div><h3>${esc(t)}</h3><small>Analista fixa: ${esc(info.fixa)} · ${esc(info.redes)}</small></div></header>
+      <div class="mini">${ativos.length} job${ativos.length!==1?'s':''} vigente${ativos.length!==1?'s':''}${prox ? ` · próxima entrega ${fmt(prox.data)}` : ''}</div>
+      <ul>${jobs.map(j => `<li><button data-job="${j.id}"><span>${esc(j.marca)}${j.talentos.length>1 ? ' <span class="mini">(conjunto)</span>' : ''}</span>${alertsFor(j).length ? '<span class="alertdot" title="Tem alertas"></span>' : ''}</button></li>`).join('')}</ul>
+    </article>`;
+  }).join('')}</div>`;
+}
+
+function viewAgenda(){
+  const items = JOBS.flatMap(j => j.entregas.map(e => ({...e, j}))).filter(e => e.st<4).sort((a,b) => a.data.localeCompare(b.data));
+  return `${roleBar()}<div class="scroll"><table><thead><tr><th>Data</th><th>Entrega</th><th>Talento</th><th>Marca</th><th>Rede</th><th>Status</th></tr></thead><tbody>
+  ${items.map(e => { const d = days(e.data); return `<tr class="click" data-job="${e.j.id}" tabindex="0"><td style="white-space:nowrap"><strong style="${d<0?'color:var(--crit)':''}">${fmt(e.data)}</strong><span class="mini" style="display:block">${d<0 ? `${-d} dias atrasada` : d===0 ? 'hoje' : `em ${d} dias`}</span></td><td>${esc(e.d)}</td><td>${esc(e.t)}</td><td>${esc(e.j.marca)}</td><td>${esc(e.r)}</td><td>${pill('ent', e.st)}</td></tr>`; }).join('')}
+  </tbody></table></div>`;
+}
+
+function viewAlertas(){
+  const a = allAlerts().sort((x,y) => (x.lvl==='crit'?0:1) - (y.lvl==='crit'?0:1));
+  return `${roleBar()}${a.length ? `<div class="alist">${a.map(x => `<div class="aitem ${x.lvl==='warn'?'warn':''}"><div><b>${esc(x.t)}</b><small>${esc(jobName(x.job))} · ${x.job.id} · área: ${x.area}</small></div><button data-job="${x.job.id}">Abrir job</button></div>`).join('')}</div>` : '<div class="empty">Nenhum alerta no momento.</div>'}
+  <p class="note">Prazos usados no protótipo: alvará 14 dias antes da entrega, NF 10 dias após a publicação, vigência 30 dias antes do fim. Os prazos reais serão definidos com a YZI.</p>`;
+}
+
+function viewMetas(){
+  const r = role();
+  if (r.values==='none') return `${roleBar()}<div class="empty">${LOCK.replace('aria-hidden','width="20" height="20" aria-hidden')}<p>Metas comerciais envolvem valores e não estão disponíveis para este perfil.</p></div>`;
+  const nomes = r.values==='own' ? [r.seller] : Object.keys(METAS);
+  return `${roleBar()}<section class="card"><h3>Vendido em 2026 × meta</h3>
+    ${nomes.map(n => { const v = JOBS.filter(j => j.vendidoPor===n).reduce((s,j) => s+j.valor, 0); const p = Math.min(100, Math.round(v/METAS[n]*100));
+      return `<div class="meta"><strong>${esc(n)}</strong><div><div class="track2"><i style="width:${p}%"></i></div><span class="mini">${p}% da meta</span></div><span class="money">${brl(v)} <span class="mini">de ${brl(METAS[n])}</span></span></div>`; }).join('')}
+    ${r.values==='own' ? '<p class="note">Analistas comerciais veem apenas a própria meta e as próprias vendas.</p>' : ''}
+  </section>`;
+}
+
+/* ---------- render + events ---------- */
+const TITLES = {matriz:'Matriz de status',talentos:'Talentos',agenda:'Agenda de entregas',alertas:'Alertas',metas:'Metas comerciais',job:'Job'};
+function render(){
+  renderNav();
+  $('#title').textContent = state.view==='job' ? 'Detalhe do job' : TITLES[state.view];
+  const v = {matriz:viewMatriz,job:viewJob,talentos:viewTalentos,agenda:viewAgenda,alertas:viewAlertas,metas:viewMetas}[state.view];
+  $('#view').innerHTML = v();
+}
+function toast(msg){ const t = $('#toast'); t.textContent = msg; t.classList.add('show'); clearTimeout(t._h); t._h = setTimeout(() => t.classList.remove('show'), 2200); }
+
+$('#role').innerHTML = ROLES.map(r => `<option value="${r.id}">${esc(r.label)}</option>`).join('');
+$('#role').addEventListener('change', e => { state.role = e.target.value; render(); toast('Perfil alterado para ' + role().label); });
+
+document.addEventListener('click', e => {
+  const nav = e.target.closest('[data-nav]');
+  if (nav){ state.view = nav.dataset.nav; render(); window.scrollTo(0,0); return; }
+  const job = e.target.closest('[data-job]');
+  if (job && !e.target.closest('select')){ state.job = job.dataset.job; state.view = 'job'; render(); window.scrollTo(0,0); }
+});
+document.addEventListener('keydown', e => {
+  if (e.key==='Enter' && e.target.matches('tr[data-job]')){ state.job = e.target.dataset.job; state.view='job'; render(); }
+});
+document.addEventListener('input', e => {
+  if (e.target.id==='q'){ state.q = e.target.value; const pos = e.target.selectionStart; render(); const q = $('#q'); q.focus(); q.setSelectionRange(pos,pos); }
+});
+document.addEventListener('change', e => {
+  if (e.target.id==='ftal'){ state.talento = e.target.value; render(); return; }
+  if (e.target.id==='falert'){ state.soAlerta = e.target.checked; render(); return; }
+  if (e.target.matches('select.st')){
+    const j = JOBS.find(x => x.id===state.job), p = e.target.dataset.path, v = Number(e.target.value);
+    let txt;
+    if (p.startsWith('ent:')){ const en = j.entregas[Number(p.slice(4))]; en.st = v; txt = `${en.d}: ${STEPS.ent[v]}`; }
+    else if (p.startsWith('nfTal:')){ const t = p.slice(6); j.nfTal[t] = v; txt = `NF do talento (${t}): ${STEPS.nf[v]}`; }
+    else if (p==='alv'){ j.alvara.st = v; txt = `Alvará: ${STEPS.alv[v]}`; }
+    else { j[p] = v; const k = p==='nfYzi' ? 'nf' : p; const lbl = {jur:'Contrato',adm:'Administrativo',nfYzi:'NF da YZI',est:'Estratégia'}[p]; txt = `${lbl}: ${STEPS[k][v]}`; }
+    j.hist.unshift({data:TODAY, quem:role().who, txt});
+    render(); toast('Status atualizado');
+  }
+});
+render();
+</script>
+</body>
+</html>
