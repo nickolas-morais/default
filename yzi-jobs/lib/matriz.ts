@@ -8,6 +8,8 @@ import type { Alerta, JobLinha } from '@/types/dominio'
 
 export type BuscaMatriz = { q?: string; talento?: string; ver?: string; pagina?: string; por?: string }
 
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+
 /** Teto de segurança por consulta: a visão e o talento já filtram no banco antes. */
 const TETO = 5000
 
@@ -26,7 +28,13 @@ const SITUACAO_DA_VISAO: Partial<Record<VisaoMatriz, JobLinha['situacao']>> = {
  * a busca por texto (talento, marca, código) filtra o que voltou.
  * As contagens das abas vêm de consultas de contagem, sem carregar os jobs.
  */
-export async function carregarMatriz(sb: SupabaseClient, busca: BuscaMatriz) {
+export async function carregarMatriz(sb: SupabaseClient, buscaBruta: BuscaMatriz) {
+  // filtros vêm do endereço: talento precisa ser um id válido; busca com tamanho limitado
+  const busca = {
+    ...buscaBruta,
+    talento: buscaBruta.talento && UUID.test(buscaBruta.talento) ? buscaBruta.talento : undefined,
+    q: buscaBruta.q?.slice(0, 100),
+  }
   const visao = lerVisaoMatriz(busca.ver)
 
   const [resAlertas, resTalento, ...contagens] = await Promise.all([

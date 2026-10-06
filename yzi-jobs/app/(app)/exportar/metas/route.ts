@@ -2,12 +2,14 @@ import { gerarCsv, respostaCsv } from '@/lib/csv'
 import { hojeSP } from '@/lib/format'
 import { carregarMetas, percentual } from '@/lib/metas'
 import { veAlgumValor } from '@/lib/perfis'
+import { dentroDoLimite } from '@/lib/limite'
 import { getSessao } from '@/lib/sessao'
 
 // Exporta meta x vendido do ano (?ano=). O RLS limita: a analista só recebe a própria linha.
 export async function GET(request: Request) {
   const sessao = await getSessao()
   if (!sessao) return new Response('Sessão expirada', { status: 401 })
+  if (!(await dentroDoLimite(`exportar:${sessao.usuario.id}`, 20, 600))) return new Response('Muitas exportações seguidas. Aguarde alguns minutos.', { status: 429 })
   if (!veAlgumValor(sessao.usuario.perfil)) return new Response('Metas são restritas a quem tem alçada', { status: 403 })
 
   const anoPedido = Number(new URL(request.url).searchParams.get('ano'))

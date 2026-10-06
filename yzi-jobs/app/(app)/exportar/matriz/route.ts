@@ -2,6 +2,7 @@ import { gerarCsv, respostaCsv } from '@/lib/csv'
 import { data, hojeSP } from '@/lib/format'
 import { carregarMatriz, nomeJob } from '@/lib/matriz'
 import { veAlgumValor } from '@/lib/perfis'
+import { dentroDoLimite } from '@/lib/limite'
 import { getSessao } from '@/lib/sessao'
 import { ENT_PUBLICADO, rotulo, SITUACAO_LABEL } from '@/lib/status'
 
@@ -10,6 +11,7 @@ import { ENT_PUBLICADO, rotulo, SITUACAO_LABEL } from '@/lib/status'
 export async function GET(request: Request) {
   const sessao = await getSessao()
   if (!sessao) return new Response('Sessão expirada', { status: 401 })
+  if (!(await dentroDoLimite(`exportar:${sessao.usuario.id}`, 20, 600))) return new Response('Muitas exportações seguidas. Aguarde alguns minutos.', { status: 429 })
   const { supabase, usuario } = sessao
 
   const params = new URL(request.url).searchParams

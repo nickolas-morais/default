@@ -1,7 +1,10 @@
 node_modules
 .next
-.env
-.env.local
+.env*
+!.env.example
 *.tsbuildinfo
 next-env.d.ts
 .vercel
+
+# gerado pela CLI do Supabase (identificadores do projeto e da organização)
+supabase/.temp/

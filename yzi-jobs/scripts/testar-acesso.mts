@@ -235,6 +235,122 @@ async function testarGestao() {
   ok('talento com NF emitida NÃO sai do job', !removido?.length)
 }
 
+// ---------- Ataques diretos à API (sem passar pelas telas) ----------
+// Quem conhece o sistema pode chamar o Supabase direto com a chave pública e a própria sessão.
+// Cada caso abaixo é uma tentativa de burlar as regras; todos devem ser recusados pelo banco.
+
+const PDF_FALSO = new Blob(['%PDF-1.4 [teste]'], { type: 'application/pdf' })
+
+async function testarAtaques() {
+  console.log('\nAtaques sem login (só a chave pública, que fica no navegador)')
+  const anon = createClient(URL, ANON, { auth: { persistSession: false, autoRefreshToken: false } })
+  for (const tabela of ['profiles', 'jobs', 'job_valores', 'metas', 'historico', 'historico_equipe', 'arquivos', 'talentos', 'marcas', 'entregaveis', 'job_talentos']) {
+    const { data } = await anon.from(tabela).select('*').limit(1)
+    ok(`sem login não lê ${tabela}`, !data?.length)
+  }
+  for (const view of ['v_alertas', 'v_vendas_analista']) {
+    const { data } = await anon.from(view).select('*').limit(1)
+    ok(`sem login não lê ${view}`, !data?.length)
+  }
+  const rpc = await anon.rpc('criar_job', { p: {} })
+  ok('sem login não chama criar_job', Boolean(rpc.error))
+  const ins = await anon.from('marcas').insert({ nome: '[teste] invasão' }).select()
+  ok('sem login não grava', !ins.data?.length)
+
+  // arquivo do job B (da outra analista): contrato privado
+  const caminhoB = `${ids.jobB}/contrato/${crypto.randomUUID()}.pdf`
+  await exigir('upload contrato B', admin.storage.from('arquivos').upload(caminhoB, PDF_FALSO, { contentType: 'application/pdf' }))
+  await exigir('registro contrato B', admin.from('arquivos').insert({ job_id: ids.jobB, tipo: 'contrato', storage_path: caminhoB, nome: '[teste] contrato.pdf' }))
+  const assinado = await anon.storage.from('arquivos').createSignedUrl(caminhoB, 60)
+  ok('sem login não gera link do contrato', !assinado.data?.signedUrl)
+
+  console.log('\nAtaques de uma analista comercial (sessão válida, mas sem direito ao dado)')
+  const sb = await como('analista_comercial')
+  const eu = ids.usuarios.analista_comercial!
+
+  // IDOR: trocar o id na requisição
+  const vB = await sb.from('job_valores').select('valor_total').eq('job_id', ids.jobB!)
+  ok('IDOR: não lê valores do job de outra analista pelo id', !vB.data?.length)
+  const linkB = await sb.storage.from('arquivos').createSignedUrl(caminhoB, 60)
+  ok('IDOR: não baixa contrato do job de outra analista', !linkB.data?.signedUrl)
+  const metasOutras = await sb.from('metas').select('*').neq('analista_id', eu)
+  ok('não lê metas de outras analistas', !metasOutras.data?.length)
+  const hist = await sb.from('historico_equipe').select('*').limit(1)
+  ok('não lê o histórico da equipe (só diretoria)', !hist.data?.length)
+
+  // Escalada de privilégio: mandar campos que a tela não manda
+  let r = await consegue('analista_comercial', 'profiles', { perfil: 'diretoria_executiva' }, { id: eu })
+  ok('não se promove a diretoria (perfil)', !r.aceitou, r.erro)
+  r = await consegue('analista_comercial', 'jobs', { vendido_por: eu }, { id: ids.jobB! })
+  ok('não "rouba" o job de outra analista (vendido_por)', !r.aceitou, r.erro)
+  if (r.aceitou) await restaurar('jobs', { vendido_por: ids.outraAnalista }, { id: ids.jobB! })
+  r = await consegue('analista_comercial', 'job_valores', { valor_total: 1 }, { job_id: ids.jobB! })
+  ok('não altera valores do job de outra analista', !r.aceitou, r.erro)
+
+  // Adulteração na criação: campos de outras áreas já preenchidos
+  const forjado = await sb
+    .from('jobs')
+    .insert({
+      marca_id: ids.marca,
+      vigencia_inicio: '2026-01-01',
+      vigencia_fim: '2026-12-31',
+      vendido_por: eu,
+      jur_status: 3,
+      nf_yzi_status: 3,
+      situacao: 'finalizado',
+      codigo: 'J-FORJADO',
+      created_by: ids.usuarios.diretoria_executiva,
+    })
+    .select('id, jur_status, nf_yzi_status, situacao, codigo, created_by')
+    .maybeSingle()
+  const j = forjado.data
+  ok(
+    'criar job não aceita status de outras áreas, situação, código nem autor forjados',
+    !j || (j.jur_status === 0 && j.nf_yzi_status === 0 && j.situacao === 'ativo' && j.codigo !== 'J-FORJADO' && j.created_by === eu),
+    j ? JSON.stringify(j) : forjado.error?.message,
+  )
+  const jobDela = j?.id ?? ids.jobA!
+  const t3 = (await exigir('talento 3', admin.from('talentos').insert({ nome: '[teste] Talento 3' }).select('id').single())).id
+  const nfForjada = await sb.from('job_talentos').insert({ job_id: jobDela, talento_id: t3, nf_status: 3 }).select('nf_status').maybeSingle()
+  ok('incluir talento não aceita NF já "Paga"', !nfForjada.data || nfForjada.data.nf_status === 0, JSON.stringify(nfForjada.data ?? nfForjada.error?.message))
+  const entForjada = await sb
+    .from('entregaveis')
+    .insert({ job_id: ids.jobA, talento_id: ids.talento, descricao: '[teste] forjada', rede: 'Instagram', data_prevista: '2026-06-01', status: 4 })
+    .select('status')
+    .maybeSingle()
+  ok('comercial não cria entrega já "Publicada"', !entForjada.data || entForjada.data.status === 0, JSON.stringify(entForjada.data ?? entForjada.error?.message))
+  const vendaAlheia = await sb
+    .from('jobs')
+    .insert({ marca_id: ids.marca, vigencia_inicio: '2026-01-01', vigencia_fim: '2026-12-31', vendido_por: ids.outraAnalista })
+    .select('id')
+  ok('não cria job em nome de outra analista', !vendaAlheia.data?.length, vendaAlheia.error?.message)
+
+  // Arquivos: apontar um registro do próprio job para a pasta de outro job
+  const caminhoForjado = `${ids.jobB}/contrato/${crypto.randomUUID()}.pdf`
+  const arqForjado = await sb.from('arquivos').insert({ job_id: ids.jobA, tipo: 'outro', storage_path: caminhoForjado, nome: '[teste] forjado', created_by: eu }).select('id')
+  ok('arquivo não pode apontar para a pasta de outro job', !arqForjado.data?.length, arqForjado.error?.message)
+
+  // Fotos: pasta de outra pessoa
+  const fotoAlheia = await sb.storage
+    .from('avatares')
+    .upload(`${ids.usuarios.diretoria_executiva}/${crypto.randomUUID()}.webp`, new Blob(['x'], { type: 'image/webp' }), { contentType: 'image/webp' })
+  ok('não grava foto na pasta de outra pessoa', Boolean(fotoAlheia.error))
+  const fotoRpc = await sb.rpc('definir_minha_foto', { p_path: `${ids.usuarios.diretoria_executiva}/qualquer.webp` })
+  ok('não aponta a própria foto para a pasta de outra pessoa', Boolean(fotoRpc.error))
+
+  console.log('\nAtaques de outros perfis')
+  r = await consegue('gerente_jaf', 'profiles', { perfil: 'diretoria_executiva' }, { id: ids.usuarios.gerente_jaf! })
+  ok('gerente jurídico/adm/financeiro não se promove', !r.aceitou, r.erro)
+  const sbAt = await como('analista_atendimento')
+  const del = await sbAt.from('jobs').delete().eq('id', ids.jobA!).select()
+  ok('atendimento não exclui job', !del.data?.length)
+  const valAt = await sbAt.from('job_valores').select('*')
+  ok('atendimento não lê nenhum valor', !(valAt.data ?? []).some((v) => v.job_id === ids.jobA || v.job_id === ids.jobB))
+
+  // limpa o arquivo de teste do Storage (o registro sai junto com o job)
+  await admin.storage.from('arquivos').remove([caminhoB])
+}
+
 // ---------- Execução ----------
 
 console.log(`Testando regras de acesso em ${URL}`)
@@ -244,6 +360,7 @@ try {
   await testarTrilhas()
   await testarSituacao()
   await testarGestao()
+  await testarAtaques()
 } catch (e) {
   falhas++
   console.error('\nErro ao rodar os testes:', e instanceof Error ? e.message : e)

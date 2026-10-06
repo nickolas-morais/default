@@ -3,6 +3,7 @@
 import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
 import { getSessao, mensagemErro } from '@/lib/sessao'
+import { MIME, tipoReal } from '@/lib/tipo-arquivo'
 
 export type Estado = { erro?: string; ok?: string } | undefined
 
@@ -19,19 +20,22 @@ type Supabase = NonNullable<Awaited<ReturnType<typeof getSessao>>>['supabase']
 
 const TIPOS_FOTO = ['image/webp', 'image/jpeg', 'image/png']
 
-/** Foto enviada no formulário: null se não veio; erro se veio inválida. */
-function fotoDoFormulario(form: FormData): { foto: File | null; erro?: string } {
+/** Foto enviada no formulário: null se não veio; erro se veio inválida (confere o conteúdo, não só o tipo informado). */
+async function fotoDoFormulario(form: FormData): Promise<{ foto: File | null; erro?: string }> {
   const foto = form.get('foto')
   if (!(foto instanceof File) || foto.size === 0) return { foto: null }
   if (foto.size > 1024 * 1024) return { foto: null, erro: 'A foto ficou grande demais. Tente outra.' }
   if (!TIPOS_FOTO.includes(foto.type)) return { foto: null, erro: 'Use uma foto em JPG, PNG ou WebP.' }
-  return { foto }
+  const real = await tipoReal(foto)
+  if (real !== 'webp' && real !== 'jpeg' && real !== 'png') return { foto: null, erro: 'O arquivo não é uma imagem válida.' }
+  // regrava com o tipo real, usado no nome e no Content-Type
+  return { foto: new File([foto], `foto.${real}`, { type: MIME[real] }) }
 }
 
 /** Envia a foto, grava no talento e apaga a anterior. Devolve true se deu certo. */
 async function gravarFotoTalento(sb: Supabase, talentoId: string, foto: File, anterior: string | null) {
   // nome aleatório: a URL pública não é adivinhável e o navegador não mostra a foto antiga do cache
-  const caminho = `${talentoId}/${crypto.randomUUID()}.${foto.type === 'image/png' ? 'png' : 'webp'}`
+  const caminho = `${talentoId}/${crypto.randomUUID()}.${foto.name.split('.').pop()}`
   const up = await sb.storage.from('talentos').upload(caminho, foto, { contentType: foto.type, cacheControl: '31536000' })
   if (up.error) return false
   const { error } = await sb.from('talentos').update({ foto_path: caminho }).eq('id', talentoId)
@@ -48,7 +52,7 @@ export async function cadastrarTalento(_: Estado, form: FormData): Promise<Estad
   if (!s) return { erro: 'Sua sessão expirou.' }
   const d = Talento.safeParse(Object.fromEntries(form))
   if (!d.success) return { erro: d.error.issues[0]?.message }
-  const { foto, erro: erroFoto } = fotoDoFormulario(form)
+  const { foto, erro: erroFoto } = await fotoDoFormulario(form)
   if (erroFoto) return { erro: erroFoto }
 
   const { data, error } = await s.supabase
@@ -78,7 +82,7 @@ export async function editarTalento(_: Estado, form: FormData): Promise<Estado> 
   if (!s) return { erro: 'Sua sessão expirou.' }
   const d = EdicaoTalento.safeParse(Object.fromEntries(form))
   if (!d.success) return { erro: d.error.issues[0]?.message }
-  const { foto, erro: erroFoto } = fotoDoFormulario(form)
+  const { foto, erro: erroFoto } = await fotoDoFormulario(form)
   if (erroFoto) return { erro: erroFoto }
 
   const { data, error } = await s.supabase

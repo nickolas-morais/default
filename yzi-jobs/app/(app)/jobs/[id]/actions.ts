@@ -4,6 +4,7 @@ import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
 import { getSessao, mensagemErro } from '@/lib/sessao'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { MIME, tipoReal } from '@/lib/tipo-arquivo'
 
 export type Resultado = { ok: true } | { ok: false; erro: string }
 
@@ -71,6 +72,9 @@ export async function enviarArquivo(_: Resultado | undefined, form: FormData): P
   if (!(arquivo instanceof File) || arquivo.size === 0) return { ok: false, erro: 'Selecione um arquivo.' }
   if (arquivo.size > TAMANHO_MAX) return { ok: false, erro: 'O arquivo passa de 9 MB. Envie uma versão menor.' }
   if (!ACEITOS.has(arquivo.type)) return { ok: false, erro: 'Formatos aceitos: PDF, XML, PNG e JPG.' }
+  // o tipo informado pelo navegador pode ser falso: confere pelo conteúdo
+  const real = await tipoReal(arquivo)
+  if (!real || real === 'webp') return { ok: false, erro: 'O conteúdo do arquivo não é um PDF, XML, PNG ou JPG válido.' }
   const talentoId = tipo.data === 'nf_talento' && typeof talentoRaw === 'string' && talentoRaw ? talentoRaw : null
   if (tipo.data === 'nf_talento' && !talentoId) return { ok: false, erro: 'Informe de qual talento é a NF.' }
 
@@ -78,7 +82,7 @@ export async function enviarArquivo(_: Resultado | undefined, form: FormData): P
   const seguro = arquivo.name.normalize('NFD').replace(/[^\w.-]+/g, '_').slice(-80)
   const caminho = `${jobId.data}/${tipo.data}/${crypto.randomUUID()}-${seguro}`
 
-  const up = await supabase.storage.from('arquivos').upload(caminho, arquivo, { contentType: arquivo.type })
+  const up = await supabase.storage.from('arquivos').upload(caminho, arquivo, { contentType: MIME[real] })
   if (up.error) return { ok: false, erro: 'Seu perfil não pode anexar este tipo de arquivo, ou o envio falhou.' }
 
   const { error } = await supabase.from('arquivos').insert({
@@ -246,8 +250,10 @@ export async function excluirArquivo(entrada: { jobId: string; id: string }): Pr
   if (error) return { ok: false, erro: mensagemErro(error) }
   if (!data?.length) return { ok: false, erro: 'Só quem enviou o arquivo ou a diretoria executiva pode excluí-lo.' }
 
-  // o bucket não tem policy de delete; a permissão já foi conferida acima, então a service role apaga o arquivo
-  await createAdminClient().storage.from('arquivos').remove([data[0].storage_path as string])
+  // o bucket não tem policy de delete; a permissão já foi conferida acima, então a service role apaga o arquivo.
+  // Segunda checagem (o banco já exige isso): só apaga dentro da pasta deste job.
+  const caminho = data[0].storage_path as string
+  if (caminho.startsWith(`${jobId.data}/`)) await createAdminClient().storage.from('arquivos').remove([caminho])
   revalidatePath(`/jobs/${jobId.data}`)
   return { ok: true }
 }

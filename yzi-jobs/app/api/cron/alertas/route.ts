@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from 'next/server'
 import { Resend } from 'resend'
+import { timingSafeEqual } from 'node:crypto'
 import { createAdminClient } from '@/lib/supabase/admin'
 import type { Perfil } from '@/lib/perfis'
 import type { Alerta } from '@/types/dominio'
@@ -19,7 +20,10 @@ type Pessoa = { id: string; nome: string; email: string; perfil: Perfil }
 type JobMini = { id: string; codigo: string; vendido_por: string; marca: { nome: string }; job_talentos: { talento: { nome: string } }[] }
 
 export async function GET(request: NextRequest) {
-  if (request.headers.get('authorization') !== `Bearer ${process.env.CRON_SECRET}`) {
+  // sem CRON_SECRET configurado, a comparação viraria "Bearer undefined" e qualquer um dispararia os e-mails
+  const segredo = process.env.CRON_SECRET
+  if (!segredo || segredo.length < 16) return NextResponse.json({ erro: 'cron não configurado' }, { status: 503 })
+  if (!igual(request.headers.get('authorization') ?? '', `Bearer ${segredo}`)) {
     return NextResponse.json({ erro: 'não autorizado' }, { status: 401 })
   }
 
@@ -84,4 +88,11 @@ export async function GET(request: NextRequest) {
     if (!error) enviados += lote.length
   }
   return NextResponse.json({ enviados, alertas: alertas.length })
+}
+
+/** Comparação em tempo constante (não revela, pelo tempo de resposta, quantos caracteres acertou). */
+function igual(a: string, b: string) {
+  const x = Buffer.from(a)
+  const y = Buffer.from(b)
+  return x.length === y.length && timingSafeEqual(x, y)
 }

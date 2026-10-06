@@ -6,6 +6,8 @@ export async function GET(_: NextRequest, ctx: { params: Promise<{ id: string; a
   const sessao = await getSessao()
   if (!sessao) return new NextResponse('Não autenticado', { status: 401 })
   const { id, arquivoId } = await ctx.params
+  const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+  if (!uuid.test(id) || !uuid.test(arquivoId)) return new NextResponse('Arquivo não encontrado', { status: 404 })
 
   const { data: arquivo } = await sessao.supabase
     .from('arquivos')

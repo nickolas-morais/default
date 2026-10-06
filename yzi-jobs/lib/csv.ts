@@ -5,7 +5,9 @@ type Celula = string | number | null | undefined
 
 function celula(v: Celula) {
   if (v === null || v === undefined) return ''
-  const texto = typeof v === 'number' ? v.toFixed(2).replace('.', ',') : v
+  // Injeção de fórmula: um nome cadastrado como "=HYPERLINK(...)" viraria fórmula no Excel.
+  // Texto que começa com = + - @ (ou tab/enter) ganha um apóstrofo e fica como texto.
+  const texto = typeof v === 'number' ? v.toFixed(2).replace('.', ',') : /^[=+\-@\t\r]/.test(v) ? `'${v}` : v
   return /[";\n\r]/.test(texto) ? `"${texto.replace(/"/g, '""')}"` : texto
 }
 
