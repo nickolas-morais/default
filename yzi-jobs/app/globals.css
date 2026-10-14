@@ -1,0 +1,242 @@
+@import 'tailwindcss';
+
+/* Menu lateral recolhido (data-menu no <html>, ver lib/menu.ts).
+   menu-recolhido: qualquer elemento da página (ex.: a grade do layout).
+   recolhido: só o que está dentro do menu lateral de desktop, para não afetar a gaveta do celular. */
+@custom-variant menu-recolhido (html[data-menu='recolhido'] &);
+@custom-variant recolhido (html[data-menu='recolhido'] [data-menu-lateral] &);
+
+/* Tokens semânticos. Neutros grafite + um acento (cobalto) + cores de status.
+   Raios: 6px em controles e selos, 10px em superfícies. Sem sombras, exceto em camadas flutuantes. */
+:root {
+  color-scheme: light;
+  --bg: #f7f7f8;
+  --surface: #ffffff;
+  --sunken: #f2f2f4;
+  --ink: #18181b;
+  --muted: #63636e;
+  --line: #e4e4e7;
+  --line-strong: #d4d4d8;
+  --accent: #2b4acb;
+  --accent-hover: #233da8;
+  --accent-ink: #ffffff;
+  --accent-soft: #eef1fd;
+  --done: #18794e;
+  --done-soft: #e8f5ee;
+  --prog: #945700;
+  --prog-soft: #fdf3e1;
+  --idle: #63636e;
+  --idle-soft: #f1f1f3;
+  --crit: #c0262d;
+  --crit-soft: #fcebec;
+  --overlay: rgb(24 24 27 / 0.4);
+}
+
+/* Tema escuro: pelo sistema (quando não há escolha salva) ou escolhido no seletor.
+   Os dois blocos repetem os mesmos valores; mantenha-os iguais. */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    color-scheme: dark;
+    --bg: #0f0f12;
+    --surface: #17171b;
+    --sunken: #1d1d22;
+    --ink: #ececef;
+    --muted: #a1a1aa;
+    --line: #2a2a30;
+    --line-strong: #3a3a42;
+    --accent: #8ea2ff;
+    --accent-hover: #a8b8ff;
+    --accent-ink: #0f0f12;
+    --accent-soft: #1d2340;
+    --done: #5fd49a;
+    --done-soft: #12291d;
+    --prog: #f0b75a;
+    --prog-soft: #2d2210;
+    --idle: #a1a1aa;
+    --idle-soft: #222227;
+    --crit: #ff8a8a;
+    --crit-soft: #33171a;
+    --overlay: rgb(0 0 0 / 0.6);
+  }
+}
+
+:root[data-theme='dark'] {
+  color-scheme: dark;
+  --bg: #0f0f12;
+  --surface: #17171b;
+  --sunken: #1d1d22;
+  --ink: #ececef;
+  --muted: #a1a1aa;
+  --line: #2a2a30;
+  --line-strong: #3a3a42;
+  --accent: #8ea2ff;
+  --accent-hover: #a8b8ff;
+  --accent-ink: #0f0f12;
+  --accent-soft: #1d2340;
+  --done: #5fd49a;
+  --done-soft: #12291d;
+  --prog: #f0b75a;
+  --prog-soft: #2d2210;
+  --idle: #a1a1aa;
+  --idle-soft: #222227;
+  --crit: #ff8a8a;
+  --crit-soft: #33171a;
+  --overlay: rgb(0 0 0 / 0.6);
+}
+
+@theme inline {
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-sunken: var(--sunken);
+  --color-ink: var(--ink);
+  --color-muted: var(--muted);
+  --color-line: var(--line);
+  --color-line-strong: var(--line-strong);
+  --color-accent: var(--accent);
+  --color-accent-hover: var(--accent-hover);
+  --color-accent-ink: var(--accent-ink);
+  --color-accent-soft: var(--accent-soft);
+  --color-done: var(--done);
+  --color-done-soft: var(--done-soft);
+  --color-prog: var(--prog);
+  --color-prog-soft: var(--prog-soft);
+  --color-idle: var(--idle);
+  --color-idle-soft: var(--idle-soft);
+  --color-crit: var(--crit);
+  --color-crit-soft: var(--crit-soft);
+  --font-sans: 'Geist Variable', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+}
+
+html {
+  -webkit-tap-highlight-color: transparent;
+  scroll-padding-top: env(safe-area-inset-top, 0px);
+}
+
+body {
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-sans);
+  font-feature-settings: 'ss01';
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+h1, h2, h3 {
+  letter-spacing: -0.015em;
+  text-wrap: balance;
+}
+
+button, a, select, input, textarea, label, summary {
+  touch-action: manipulation;
+}
+
+/* O Tailwind 4 deixou de pôr cursor de mãozinha em botões; os links já têm.
+   Tudo que é clicável fica igual; desabilitado mostra que não dá para clicar. */
+@layer base {
+  button:not(:disabled),
+  [role='button']:not([aria-disabled='true']),
+  summary,
+  input[type='file']::file-selector-button {
+    cursor: pointer;
+  }
+
+  button:disabled,
+  select:disabled,
+  input:disabled {
+    cursor: not-allowed;
+  }
+}
+
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* selects nativos legíveis no modo escuro do Windows */
+select {
+  background-color: var(--surface);
+  color: var(--ink);
+}
+
+/* Lista aberta do select com a mesma cara do Combobox (Marca, Talentos).
+   appearance: base-select (Chrome/Edge 135+) deixa estilizar a lista nativa sem perder
+   teclado e leitor de tela; nos outros navegadores fica a lista padrão do sistema. */
+@supports (appearance: base-select) {
+  select,
+  select::picker(select) {
+    appearance: base-select;
+  }
+
+  /* no base-select o texto escolhido fica no topo e quebra linha; centraliza e mantém em uma linha */
+  select {
+    display: flex;
+    align-items: center;
+    padding-block: 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  /* a seta é o ícone do componente Select */
+  select::picker-icon {
+    display: none;
+  }
+
+  select::picker(select) {
+    margin-block: 4px;
+    min-inline-size: anchor-size(inline);
+    max-block-size: 16rem;
+    padding: 4px;
+    border: 1px solid var(--line-strong);
+    border-radius: 10px;
+    background: var(--surface);
+    color: var(--ink);
+    box-shadow: 0 8px 24px rgb(0 0 0 / 0.12);
+  }
+
+  select option {
+    display: flex;
+    align-items: center;
+    min-block-size: 36px;
+    padding-inline: 10px;
+    border-radius: 6px;
+    font-size: 14px;
+    background: transparent;
+    color: var(--ink);
+  }
+
+  select option::checkmark {
+    display: none;
+  }
+
+  select option:hover,
+  select option:focus-visible {
+    background: var(--sunken);
+    outline: none;
+  }
+
+  select option:checked {
+    font-weight: 500;
+  }
+
+  select option:disabled {
+    color: var(--muted);
+  }
+}
+
+/* o Edge desenha um olho próprio no campo de senha; o nosso (InputSenha) já faz isso */
+input::-ms-reveal,
+input::-ms-clear {
+  display: none;
+}
+
+input[type='date']::-webkit-calendar-picker-indicator {
+  opacity: 0.6;
+}
+
+.tabular {
+  font-variant-numeric: tabular-nums;
+}
+
+dialog::backdrop {
+  background: var(--overlay);
+}
